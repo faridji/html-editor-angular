@@ -12,6 +12,7 @@ export class HtmlEditorComponent implements OnInit
 	@ViewChild('editabeContent') editableContent: ElementRef<HTMLDivElement>;
 
 	toolbar: ToolbarConfig[];
+	tableActions: ToolbarConfig[];
 	content: string;
 
 	numOfCols: string;
@@ -23,38 +24,6 @@ export class HtmlEditorComponent implements OnInit
 	constructor(private renderer: Renderer2) 
 	{
 		this.toolbar = [
-			{
-				name: 'table',
-				title: 'Table'
-			},
-			{
-				name: 'row_below',
-				title: 'Row Below'
-			},
-			{
-				name: 'row_above',
-				title: 'Row Above'
-			},
-			{
-				name: 'column_left',
-				title: 'Column Left'
-			},
-			{
-				name: 'column_right',
-				title: 'Column Right'
-			},
-			{
-				name: 'remove_row',
-				title: 'Remove Row'
-			},
-			{
-				name: 'remove_column',
-				title: 'Remove Column'
-			},
-			{
-				name: 'merge_cells',
-				title: 'Merge Cells'
-			},
 			{
 				name: 'list',
 				title: 'List'
@@ -93,6 +62,36 @@ export class HtmlEditorComponent implements OnInit
 			}
 		];
 
+		this.tableActions = [
+			{
+				name: 'row_below',
+				title: 'Row Below'
+			},
+			{
+				name: 'row_above',
+				title: 'Row Above'
+			},
+			{
+				name: 'column_left',
+				title: 'Column Left'
+			},
+			{
+				name: 'column_right',
+				title: 'Column Right'
+			},
+			{
+				name: 'remove_row',
+				title: 'Remove Row'
+			},
+			{
+				name: 'remove_column',
+				title: 'Remove Column'
+			},
+			{
+				name: 'merge_cells',
+				title: 'Merge Cells'
+			},
+		]
 		this.numOfCols = null;
 		this.numOfRows = null;
 
@@ -113,39 +112,6 @@ export class HtmlEditorComponent implements OnInit
 
 		switch(action.name) 
 		{
-			case 'table':
-				this.makeTable();
-				this.initResizing();
-				break;
-
-			case 'row_below':
-				this.addRow('below');
-				break;
-
-			case 'row_above':
-				this.addRow('above');
-				break;
-
-			case 'column_right':
-				this.addColumn('right');
-				break;
-
-			case 'column_left':
-				this.addColumn('left');
-				break;
-
-			case 'remove_row':
-				this.onRemove('row');
-				break;
-
-			case 'remove_column':
-				this.onRemove('column');
-				break;
-
-			case 'merge_cells':
-				this.mergeCells();
-				break;
-
 			case 'list':
 				document.execCommand('insertUnorderedList');
 				break;
@@ -189,6 +155,46 @@ export class HtmlEditorComponent implements OnInit
 		}
 	}
 
+	onTableActions(action: ToolbarConfig): void
+	{
+		switch(action.name) 
+		{
+			case 'row_below':
+				this.addRow('below');
+				break;
+
+			case 'row_above':
+				this.addRow('above');
+				break;
+
+			case 'column_right':
+				this.addColumn('right');
+				break;
+
+			case 'column_left':
+				this.addColumn('left');
+				break;
+
+			case 'remove_row':
+				this.onRemove('row');
+				break;
+
+			case 'remove_column':
+				this.onRemove('column');
+				break;
+
+			case 'merge_cells':
+				this.mergeCells();
+				break;
+		}
+	}
+
+	onAddTable(): void
+	{
+		this.makeTable();
+		this.initResizing();
+	}
+
 	onEditableContainerClicked(ev: MouseEvent): void
 	{
 		this.currentElement = null;
@@ -225,13 +231,7 @@ export class HtmlEditorComponent implements OnInit
 	getCellIndex(col: HTMLTableCellElement) 
 	{
 		this.colIndex = col.cellIndex;
-		this.currentElement = 'table';
-	
-		// if (this.currentElement == 'table') {
-		// 	let tableActions = document.getElementsByClassName('table-actions')[0];
-		// 	tableActions.style.display = 'flex';
-		// }
-		
+		this.currentElement = 'table';		
 		console.log('Col Index =', this.colIndex);
 	}
 	
@@ -416,6 +416,7 @@ export class HtmlEditorComponent implements OnInit
 			for (var i=0; i<tblBodyObj.rows.length; i++) {
 				const cell = tblBodyObj.rows[i].insertCell(this.colIndex);
 				cell.setAttribute('contenteditable', 'true');
+				cell.innerHTML = `Cell ${i+1}`;
 				cell.style.border = '1px solid gray';
 				cell.onclick = () => {
 					this.getCellIndex(cell);
