@@ -1,0 +1,92 @@
+.container {
+    .toolbar 
+    {
+        margin: 5px; 
+        display: flex; 
+        justify-content: space-between;
+        align-items: flex-start;
+
+        .actions {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+        
+            margin: 0;
+            list-style-type: none;
+        }
+        
+        .table-actions {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+        
+            margin: 0;
+            list-style-type: none;
+        }
+        
+        .action-item {
+            background-color: #999;
+            margin-right: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+
+        .btn {
+            background: #6f9e4e;
+            color: #fff;
+            padding: 0 20px;
+            outline: none;
+            border: none;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 155px;
+            height: 40px;
+        }
+    }
+
+    .main 
+    {
+        .editable-content
+        {
+            border: 1px solid gray;
+            padding: 10px;
+        }
+
+        table 
+        {
+            border-collapse: collapse;
+        } 
+
+        table th {
+            position: relative;
+            word-wrap: break-word; 
+        }
+
+        table, td, th {
+            border: 1px solid gray;
+            vertical-align: top;
+        }
+
+        .cell {
+            padding: 10px;
+        }
+
+        .resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            cursor: col-resize;
+            user-select: none;
+        }
+        
+        .resizer:hover, .resizing {
+            border-right: 2px solid blue;
+        }
+    }
+}

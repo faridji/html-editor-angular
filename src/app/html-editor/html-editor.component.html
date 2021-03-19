@@ -1,0 +1,29 @@
+<div class="container">
+    <nav class="toolbar">
+        <ul class="actions">
+            <li *ngFor="let action of toolbar">
+                <button id="table" class="action-item" (click)="onToolbarAction(action)">{{action.title}}</button>
+            </li>
+        </ul>
+        <button id="btn_preview" class="btn" (click)="onPreview()">Show Preview</button>
+    </nav>
+
+    <main class="main">
+        <div style="width: 70%; margin: 0 auto;">
+            <h1>Editable Text Area</h1>
+            <div class="editable-content" style="width: 70%;" #editabeContent contenteditable (click)="onEditableContainerClicked($event)">
+                Editable Text (bold, italic, underline, enter work here)
+            </div>
+        </div>
+        
+        <h2>Preview</h2>
+        
+        <div class="editable-content" style="margin-bottom: 10px;" [innerHTML]="content">
+            <div id="content">preview goes here...</div>
+        </div>
+    
+        <div id="html_view" class="editable-content">
+            {{content}}
+        </div>
+    </main>
+</div>
