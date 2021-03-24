@@ -17,9 +17,10 @@ export class HtmlEditorComponent implements OnInit
 
 	numOfCols: string;
 	numOfRows: string;
+	numOfTables: number;
 	rowIndex: number;
 	colIndex: number;
-	currentElement: string;
+	currentElement: 'Table' | 'Container';
 
 	constructor(private renderer: Renderer2) 
 	{
@@ -99,6 +100,8 @@ export class HtmlEditorComponent implements OnInit
 		this.colIndex = 0;
 
 		this.currentElement = null;
+
+		this.numOfTables = 0;
 	}
 
 	ngOnInit(): void 
@@ -189,10 +192,15 @@ export class HtmlEditorComponent implements OnInit
 		}
 	}
 
+	onMainContainerClick(): void
+	{
+		this.currentElement = 'Container';
+	}
+
 	onAddTable(): void
 	{
 		this.makeTable();
-		this.initResizing();
+		this.initResizing(`dynamic_table_${this.numOfTables}`);
 	}
 
 	onEditableContainerClicked(ev: MouseEvent): void
@@ -204,7 +212,10 @@ export class HtmlEditorComponent implements OnInit
 	makeTable(): void
 	{
 		const dimensions = prompt('rows/cols', '2/3');
-        if (dimensions && dimensions != '') {
+        if (dimensions && dimensions != '') 
+		{
+			if (this.currentElement === 'Table') return;
+
             [this.numOfRows, this.numOfCols] = dimensions.split('/');
             this.addHTMLAtCaretPos('table');
             this.removeContentEditable();
@@ -222,7 +233,7 @@ export class HtmlEditorComponent implements OnInit
 
 	getRowIndex(ev: MouseEvent, row: HTMLTableRowElement) 
 	{
-		this.currentElement = 'table';
+		this.currentElement = 'Table';
 		this.rowIndex = row.rowIndex;
 		this.removeContentEditable();
 		ev.stopPropagation();
@@ -231,7 +242,7 @@ export class HtmlEditorComponent implements OnInit
 	getCellIndex(col: HTMLTableCellElement) 
 	{
 		this.colIndex = col.cellIndex;
-		this.currentElement = 'table';		
+		this.currentElement = 'Table';		
 		console.log('Col Index =', this.colIndex);
 	}
 	
@@ -243,6 +254,8 @@ export class HtmlEditorComponent implements OnInit
 
 	getTableHTML(): HTMLTableElement
 	{
+		this.numOfTables += 1;
+
 		// const colWidth = (100/numOfCols).toFixed(2);
 		const containerPadding = 20;
 		const styles = window.getComputedStyle(this.editableContent.nativeElement);		// TODO replace getComputed with offsetWidth;
@@ -252,7 +265,7 @@ export class HtmlEditorComponent implements OnInit
 		//  width = 100;
 	
 		let table = this.renderer.createElement('table');
-		table.setAttribute('id', 'dynamic_table');
+		table.setAttribute('id', `dynamic_table_${this.numOfTables}`);
 		
 		let thead = this.renderer.createElement('thead');
 		let tbody = this.renderer.createElement('tbody');
@@ -355,9 +368,21 @@ export class HtmlEditorComponent implements OnInit
 		// }
 	}
 
+	getTableId(): string 
+	{
+		let selection = window.getSelection().getRangeAt(0);
+		let startingElement = selection.startContainer.parentElement;
+
+		while(startingElement.tagName != 'TABLE') {
+			startingElement = startingElement.parentElement;
+		}
+
+		return startingElement.getAttribute('id');
+	}
+
 	addRow(pos: string): void
 	{
-		const table = (document.getElementById('dynamic_table') as HTMLTableElement);		// TODO; need to remove document.getElement
+		const table = (document.getElementById(this.getTableId()) as HTMLTableElement);		// TODO; need to remove document.getElement
 		let colsToAdd = 0;
 			
 		if (table) {
@@ -381,6 +406,8 @@ export class HtmlEditorComponent implements OnInit
 			row.onclick = (ev: MouseEvent) => {
 				this.getRowIndex(ev, row);
 			};
+
+			this.reInitializeResizing();
 		}
 	}
 
@@ -390,7 +417,7 @@ export class HtmlEditorComponent implements OnInit
 	
 		if (this.colIndex < 0) this.colIndex = 0;
 	
-		const table = (document.getElementById('dynamic_table') as HTMLTableElement);
+		const table = (document.getElementById(this.getTableId()) as HTMLTableElement);
 	
 		if (table) {
 			var tblHeadObj = table.tHead;
@@ -401,6 +428,8 @@ export class HtmlEditorComponent implements OnInit
 				th.setAttribute('contenteditable', 'true');
 				th.style.width = '70px';
 				th.style.border = '1px solid gray';
+				th.style.position = 'relative';
+
 				th.onclick = () => {
 					this.getCellIndex(th);
 				}
@@ -412,7 +441,7 @@ export class HtmlEditorComponent implements OnInit
 				// addResizerDiv(th, table);
 			}
 		
-			var tblBodyObj = (document.getElementById('dynamic_table') as HTMLTableElement).tBodies[0];
+			var tblBodyObj = table.tBodies[0];
 			for (var i=0; i<tblBodyObj.rows.length; i++) {
 				const cell = tblBodyObj.rows[i].insertCell(this.colIndex);
 				cell.setAttribute('contenteditable', 'true');
@@ -427,6 +456,7 @@ export class HtmlEditorComponent implements OnInit
 				};
 			}
 		
+			this.reInitializeResizing();
 	
 			// This give equal width to all table columns;
 			
@@ -450,7 +480,7 @@ export class HtmlEditorComponent implements OnInit
 
 	onRemove(type: string): void
 	{
-		const table = (document.getElementById('dynamic_table') as HTMLTableElement);
+		const table = (document.getElementById(this.getTableId()) as HTMLTableElement);
 		if (table) 
 		{
 			if (type == 'row') table.deleteRow(this.rowIndex);
@@ -505,16 +535,17 @@ export class HtmlEditorComponent implements OnInit
 		}
 	}
 
-
 	reInitializeResizing(): void
 	{
-		document.querySelectorAll('.resizer').forEach(e => e.remove());
-		this.initResizing();
+		const id = this.getTableId();
+		const table = document.getElementById(id);
+		table.querySelectorAll('.resizer').forEach(e => e.remove());
+		this.initResizing(id);
 	}
 	
-	initResizing(): void
+	initResizing(id: string): void
 	{
-		const table = document.getElementById('dynamic_table');
+		const table = document.getElementById(id);
 	
 		// Query all headers
 		const cols = table.querySelectorAll('th');

@@ -1,4 +1,4 @@
-<div class="container">
+<div class="container" (click)="onMainContainerClick()">
     <nav class="toolbar">
         <div style="display: flex; flex-direction: column;">
             <div style="display: flex;">
@@ -10,7 +10,7 @@
                     </li>
                 </ul>
     
-                <ul class="actions" *ngIf="currentElement === 'table'">
+                <ul class="actions" *ngIf="currentElement === 'Table'">
                     <li *ngFor="let tableAction of tableActions">
                         <button id="table" class="action-item" (click)="onTableActions(tableAction)">
                             {{tableAction.title}}
