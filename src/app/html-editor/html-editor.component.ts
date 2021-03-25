@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnInit, Renderer2, ViewChild } from '@angular/core';
-import { ToolbarConfig } from './models';
+import { TableJSON, ToolbarConfig } from './models';
 
 
 @Component({
@@ -21,6 +21,7 @@ export class HtmlEditorComponent implements OnInit
 	rowIndex: number;
 	colIndex: number;
 	currentElement: 'Table' | 'Container';
+	tableJson: TableJSON;
 
 	constructor(private renderer: Renderer2) 
 	{
@@ -92,6 +93,10 @@ export class HtmlEditorComponent implements OnInit
 				name: 'merge_cells',
 				title: 'Merge Cells'
 			},
+			{
+				name: 'clear_table',
+				title: 'Clear'
+			}
 		]
 		this.numOfCols = null;
 		this.numOfRows = null;
@@ -102,6 +107,11 @@ export class HtmlEditorComponent implements OnInit
 		this.currentElement = null;
 
 		this.numOfTables = 0;
+
+		this.tableJson = {
+			header: [],
+			body: []
+		}
 	}
 
 	ngOnInit(): void 
@@ -188,6 +198,14 @@ export class HtmlEditorComponent implements OnInit
 
 			case 'merge_cells':
 				this.mergeCells();
+				break;
+
+			case 'clear_table':
+				this.clearTable();
+				break;
+
+			case 'load_table':
+				this.loadTable();
 				break;
 		}
 	}
@@ -278,7 +296,18 @@ export class HtmlEditorComponent implements OnInit
 		for (let c=0; c<parseInt(this.numOfCols); c++) {
 			let th = this.renderer.createElement('th');
 			th.setAttribute('contenteditable', 'true');
-			th.innerHTML = `Heading ${c+1}`;
+
+			if (this.tableJson.header.length > 0) {
+				th.innerHTML = this.tableJson.header[c].text;
+
+				if (this.tableJson.header[c].colSpan > 0) {
+					th.colSpan = this.tableJson.header[c].colSpan;
+				}
+			} 
+			else {
+				th.innerHTML = `Heading ${c+1}`;
+			}
+			
 			th.style.width = width + 'px';
 	
 			th.addEventListener('click', () => {
@@ -294,16 +323,31 @@ export class HtmlEditorComponent implements OnInit
 	
 		thead.appendChild(theadRow);
 	
-		for (let r=1; r<parseInt(this.numOfRows); r++) {
+		for (let r=0; r<parseInt(this.numOfRows) - 1; r++) {
 			let tr = this.renderer.createElement('tr');
 			tr.addEventListener('click', (ev: MouseEvent) => {
 				this.getRowIndex(ev, tr);
 			});
 	
+			const len = this.tableJson.body.length;
+
+			this.numOfCols = (len > 0) ? this.tableJson.body[r].cells.length.toString() : this.numOfCols;
+			
 			for (let c=0; c<parseInt(this.numOfCols); c++) {
 				let td = this.renderer.createElement('td');
 				td.setAttribute('contenteditable', 'true');
-				td.innerHTML = `Cell ${c+1}`;
+
+				if (len > 0) {
+					td.innerHTML = this.tableJson.body[r].cells[c].text;
+
+					if (this.tableJson.body[r].cells[c].colSpan > 0) {
+						console.log('Row Cell ColSpan =', this.tableJson.body[r].cells[c].colSpan)
+						td.colSpan = this.tableJson.body[r].cells[c].colSpan;
+					}
+				} 
+				else {
+					td.innerHTML = `Cell ${c+1}`;
+				}
 				//td.style.width = width + 'px';
 	
 				td.addEventListener('click', () => {
@@ -483,26 +527,34 @@ export class HtmlEditorComponent implements OnInit
 		const table = (document.getElementById(this.getTableId()) as HTMLTableElement);
 		if (table) 
 		{
-			if (type == 'row') table.deleteRow(this.rowIndex);
-			else 
-			{
-				var allRows = table.rows;
-				for (var i=0; i<allRows.length; i++) 
-				{
-					if (allRows[i].cells.length > 1) allRows[i].deleteCell(this.colIndex);
-				}
+			switch(type) {
+				case 'row':
+					table.deleteRow(this.rowIndex);
+					break;
+
+				case 'table':
+					const parent = table.parentElement;
+					parent.removeChild(table);
+					break;
+
+				default:
+					var allRows = table.rows;
+					for (var i=0; i<allRows.length; i++) 
+					{
+						if (allRows[i].cells.length > 1) allRows[i].deleteCell(this.colIndex);
+					}
 			}
 		}
 	}
 
-	mergeCells(): void
+	mergeCells(s: HTMLTableCellElement = null, r: HTMLTableRowElement = null): void
 	{
 		let selection = window.getSelection().getRangeAt(0);
 		let startingElementIdx = 0;
 	
-		const startingElement = selection.startContainer.parentElement as HTMLTableCellElement;
+		const startingElement = s ? s : selection.startContainer.parentElement as HTMLTableCellElement;
 		startingElementIdx = startingElement.cellIndex;
-		const row = selection.startContainer.parentElement.parentElement as HTMLTableRowElement;
+		const row = r ? r : selection.startContainer.parentElement.parentElement as HTMLTableRowElement;
 		const endingElementIdx = startingElementIdx + 1;
 		const endingElement = row.cells[endingElementIdx];
 	
@@ -609,6 +661,60 @@ export class HtmlEditorComponent implements OnInit
 	
 		resizer.addEventListener('mousedown', mouseDownHandler);
 	};
+
+	clearTable(): void
+	{
+		this.tableJson = {
+			header: [],
+			body: []
+		};
+
+		const table = (document.getElementById(this.getTableId()) as HTMLTableElement);		// TODO; need to remove document.getElement			
+		if (table) 
+		{
+			table.querySelectorAll('.resizer').forEach(e => e.remove());
+
+			let thead = table.tHead.rows[0];
+
+			for (var th=0; th<thead.cells.length; th++) {
+				const cell = thead.cells[th];
+
+				this.tableJson.header.push({
+					text: cell.innerHTML,
+					colSpan: +cell.getAttribute('colSpan'),
+					width: cell.style.width
+				});
+			}
+
+			const tableBody = table.tBodies[0];
+			for (let r=0; r < tableBody.rows.length; r++) {
+				let row = tableBody.rows[r];
+				this.tableJson.body.push({cells: []});
+				
+				for (let c=0; c < row.cells.length; c++ )
+				{
+					let cell = row.cells[c];
+					this.tableJson.body[r].cells.push({
+						text: cell.innerHTML,
+						colSpan: +cell.getAttribute('colSpan')
+					});
+				}
+			}
+		}	
+		
+		this.onRemove('table');
+	}
+
+	loadTable(): void
+	{
+		console.log('Table data =', JSON.stringify(this.tableJson));
+
+		this.numOfCols = this.tableJson.header.length.toString();
+		this.numOfRows = (this.tableJson.body.length + 1).toString();
+
+		this.addHTMLAtCaretPos('table');
+		this.initResizing(`dynamic_table_${this.numOfTables}`);
+	}
 
 	onPreview(): void
 	{
