@@ -17,3 +17,8 @@ export interface Cell {
     colSpan: number;
     width?: string;
 }
+
+export interface EditableContent {
+    type: 'table' | 'normal';
+    content: any;
+}

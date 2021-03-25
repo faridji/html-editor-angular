@@ -39,12 +39,12 @@
         
         <h2>Preview</h2>
         
-        <div class="editable-content" style="margin-bottom: 10px;" [innerHTML]="content">
+        <div class="editable-content" style="margin-bottom: 10px;" [innerHTML]="html">
             <div id="content">preview goes here...</div>
         </div>
     
         <div id="html_view" class="editable-content">
-            {{content}}
+            {{content | json}}
         </div>
     </main>
 </div>

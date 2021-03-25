@@ -1,5 +1,6 @@
-import { Component, ElementRef, Renderer2, ViewChild } from '@angular/core';
-import { TableJSON, ToolbarConfig } from './models';
+import { Component, ElementRef, Renderer2, ViewChild, ɵSafeHtml } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
+import { EditableContent, TableJSON, ToolbarConfig } from './models';
 
 
 @Component({
@@ -13,7 +14,8 @@ export class HtmlEditorComponent
 
 	toolbar: ToolbarConfig[];
 	tableActions: ToolbarConfig[];
-	content: string;
+	content: EditableContent[];
+	html: ɵSafeHtml;
 
 	numOfCols: string;
 	numOfRows: string;
@@ -23,7 +25,7 @@ export class HtmlEditorComponent
 	currentElement: 'Table' | 'Container';
 	tableJson: TableJSON;
 
-	constructor(private renderer: Renderer2) 
+	constructor(private renderer: Renderer2, private sanitizer: DomSanitizer) 
 	{
 		this.toolbar = [
 			{
@@ -104,10 +106,9 @@ export class HtmlEditorComponent
 
 		this.numOfTables = 0;
 
-		this.tableJson = {
-			header: [],
-			body: []
-		}
+		this.tableJson = { header: [], body: [] };
+		this.content = [];
+		this.html = '';
 	}
 
 	onToolbarAction(action: ToolbarConfig): void
@@ -255,6 +256,7 @@ export class HtmlEditorComponent
 
 	getTableHTML(): HTMLTableElement
 	{
+		console.log('Table JSON =', this.tableJson);
 		this.numOfTables += 1;
 		const containerPadding = 20;
 		const styles = window.getComputedStyle(this.editableContent.nativeElement);		// TODO replace getComputed with offsetWidth;
@@ -613,7 +615,7 @@ export class HtmlEditorComponent
 		resizer.addEventListener('mousedown', mouseDownHandler);
 	};
 
-	getDescriptionData(): string
+	getDescriptionDataAsString(): string
     {
         let content = '';
         const children = this.editableContent.nativeElement.children;
@@ -670,13 +672,66 @@ export class HtmlEditorComponent
         return content;
     }
 
+	addContent(type: 'table' | 'normal', content: any): void
+	{
+		const obj: EditableContent = {type, content};
+		this.content.push(obj);
+	}
+
+	getDescriptionDataAsJSON(): void
+	{
+		this.content = [];
+        const children = this.editableContent.nativeElement.children;
+
+		if (children.length > 0) {
+			for (let c=0; c<children.length; c++ ) 
+			{
+				let child = children[c];
+				let json = null;
+	
+				if (child.getElementsByTagName('table').length > 0) 
+				{
+					let newChildren = child.children;
+
+					for (let j=0; j<newChildren.length; j++) 
+					{
+						let newChild = newChildren[j];
+						if (newChild.tagName === 'TABLE') {
+							json = this.getTableJSON(newChild.getAttribute('id'));
+							this.addContent('table', json);
+						}
+
+						else if (newChild.getElementsByTagName('table').length > 0) {
+							let tableChildrens = newChild.children;
+							while(tableChildrens.length > 0) {
+								let counter = 0;
+								if (tableChildrens[counter].tagName === 'TABLE') 
+								{
+									json = this.getTableJSON(tableChildrens[counter].getAttribute('id'));
+									this.addContent('table', json);
+									break;
+								}
+								else if (tableChildrens[counter].getElementsByTagName('table')) {
+									tableChildrens = tableChildrens[counter].children;
+									counter += 1;
+								}
+							}
+						}
+						else this.addContent('normal', newChild.outerHTML);
+					}
+				}
+				else this.addContent('normal', child.outerHTML);		
+			}
+		}
+		else 
+		{
+			this.addContent('normal', this.editableContent.nativeElement.innerHTML);
+		}
+	}
+
 	getTableJSON(id: string): string
 	{
-		this.tableJson = {
-			header: [],
-			body: []
-		};
-
+		this.tableJson = {header: [], body: []};
 		const table = (document.getElementById(id) as HTMLTableElement);		// TODO; need to remove document.getElement			
 		if (table) 
 		{
@@ -714,42 +769,70 @@ export class HtmlEditorComponent
 	}
 
 	onPreview(): void
-	{
-		this.content = this.getDescriptionData();
+	{		
+		// this.getDescriptionDataAsJSON();
+		console.log('Content =', this.content);
+		// this.content = [ { "type": "normal", "content": "<div>some Text</div>" }, { "type": "normal", "content": "<div><b><i>bold + italic</i></b></div>" }, { "type": "normal", "content": "<div><b><i><u>bold + italic + underline</u></i></b></div>" }, { "type": "normal", "content": "<div><b><i><u><br></u></i></b></div>" }, { "type": "normal", "content": "<div><b><u>list 1</u></b></div>" }, { "type": "normal", "content": "<div><ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul></div>" }, { "type": "table", "content": "{\"header\":[{\"text\":\"Heading 1\",\"colSpan\":0,\"width\":\"241.33px\"},{\"text\":\"Heading 2\",\"colSpan\":0,\"width\":\"241.33px\"},{\"text\":\"Heading 3\",\"colSpan\":0,\"width\":\"241.33px\"}],\"body\":[{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":0},{\"text\":\"Cell 2\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]}]}" }, { "type": "normal", "content": "<br>" }, { "type": "normal", "content": "<div _ngcontent-wdl-c11=\"\"><b><u>list 2</u></b></div>" }, { "type": "normal", "content": "<ul><li>Item 4</li><li>Item 5</li><li>Item 6</li><li>Item 7</li></ul>" }, { "type": "table", "content": "{\"header\":[{\"text\":\"Heading 1\",\"colSpan\":0,\"width\":\"238.67px\"},{\"text\":\"Heading 2\",\"colSpan\":0,\"width\":\"238.67px\"},{\"text\":\"Heading 3\",\"colSpan\":0,\"width\":\"238.67px\"}],\"body\":[{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":2},{\"text\":\"Cell 3\",\"colSpan\":0}]},{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":0},{\"text\":\"Cell 2\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]},{\"cells\":[{\"text\":\"<b>Cell 1</b>\",\"colSpan\":0},{\"text\":\"<span style=\\\"background-color: green;\\\">Cell 2</span>\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]}]}" } ];
 		this.editableContent.nativeElement.innerHTML = null;
+		for (let section of this.content) {
+			switch(section.type) {
+				case 'normal':
+					this.editableContent.nativeElement.innerHTML += section.content;
+					break;
 
-		if (this.content.includes('#JSON')) {
-			console.log('JSON Content =', this.content);
+				case 'table':
+					this.tableJson = JSON.parse(section.content);
+					this.numOfCols = this.tableJson.header.length.toString();
+					this.numOfRows = (this.tableJson.body.length + 1).toString();
+					
+					const el = this.renderer.createElement('div');
+					el.appendChild(this.getTableHTML());
+					this.editableContent.nativeElement.appendChild(el);
+					setTimeout(() => {
+						this.setEventListeners();
+						this.initResizing(`dynamic_table_${this.numOfTables}`);
+					}, 0);
+					break;
+			}
+		}
 
-			const searchTerm = this.content.substring(this.content.search('#JSON'), (this.content.search('}]}]}'))) + '}]}]}';
-			console.log('Search Term =', searchTerm);
-            const otherContent = this.content.split(searchTerm);
-            console.log('Other content =', otherContent);
+		this.html = this.sanitizer.bypassSecurityTrustHtml(this.editableContent.nativeElement.innerHTML);
+		console.log('HTML =', this.editableContent.nativeElement.innerHTML);
+		// this.content = this.getDescriptionDataAsJSON();
+		// this.editableContent.nativeElement.innerHTML = null;
+		// if (this.content.includes('#JSON')) {
+		// 	console.log('JSON Content =', this.content);
 
-			this.editableContent.nativeElement.innerHTML = otherContent[0];
+		// 	const searchTerm = this.content.substring(this.content.search('#JSON'), (this.content.search('}]}]}'))) + '}]}]}';
+		// 	console.log('Search Term =', searchTerm);
+        //     const otherContent = this.content.split(searchTerm);
+        //     console.log('Other content =', otherContent);
 
-			this.tableJson = JSON.parse(searchTerm.replace('#JSON', ''));
-			this.numOfCols = this.tableJson.header.length.toString();
-			this.numOfRows = (this.tableJson.body.length + 1).toString();
+		// 	this.editableContent.nativeElement.innerHTML = otherContent[0];
+
+		// 	this.tableJson = JSON.parse(searchTerm.replace('#JSON', ''));
+		// 	this.numOfCols = this.tableJson.header.length.toString();
+		// 	this.numOfRows = (this.tableJson.body.length + 1).toString();
 			
-			const el = this.renderer.createElement('div');
-			el.appendChild(this.getTableHTML());
-			this.editableContent.nativeElement.appendChild(el);
-			this.editableContent.nativeElement.innerHTML += otherContent[1];
+		// 	const el = this.renderer.createElement('div');
+		// 	el.appendChild(this.getTableHTML());
+		// 	this.editableContent.nativeElement.appendChild(el);
+		// 	this.editableContent.nativeElement.innerHTML += otherContent[1];
 
-			this.setEventListeners();
-			this.initResizing(`dynamic_table_${this.numOfTables}`);
-		}
-		else
-		{
-			console.log('Without JSON =', this.content);
-			this.editableContent.nativeElement.innerHTML = this.content;
-		}
+		// 	this.setEventListeners();
+		// 	this.initResizing(`dynamic_table_${this.numOfTables}`);
+		// }
+		// else
+		// {
+		// 	console.log('Without JSON =', this.content);
+		// 	this.editableContent.nativeElement.innerHTML = this.content;
+		// }
 	}
 
 	setEventListeners(): void
 	{
 		const table = document.getElementById(`dynamic_table_${this.numOfTables}`) as HTMLTableElement;
+		console.log('Table for event listeners', table);
 		if (table) {
 			const theadRow = table.tHead.rows[0];
 			theadRow.addEventListener('click', (ev: MouseEvent) => {
