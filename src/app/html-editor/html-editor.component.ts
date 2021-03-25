@@ -722,7 +722,9 @@ export class HtmlEditorComponent
 			console.log('JSON Content =', this.content);
 
 			const searchTerm = this.content.substring(this.content.search('#JSON'), (this.content.search('}]}]}'))) + '}]}]}';
-			const otherContent = this.content.split(searchTerm);
+			console.log('Search Term =', searchTerm);
+            const otherContent = this.content.split(searchTerm);
+            console.log('Other content =', otherContent);
 
 			this.editableContent.nativeElement.innerHTML = otherContent[0];
 
@@ -736,6 +738,7 @@ export class HtmlEditorComponent
 			this.editableContent.nativeElement.innerHTML += otherContent[1];
 
 			this.setEventListeners();
+			this.initResizing(`dynamic_table_${this.numOfTables}`);
 		}
 		else
 		{
