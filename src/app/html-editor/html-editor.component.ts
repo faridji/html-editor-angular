@@ -20,9 +20,10 @@ export class HtmlEditorComponent
 	numOfCols: string;
 	numOfRows: string;
 	numOfTables: number;
+	numOfTablesToPatch: number;
 	rowIndex: number;
 	colIndex: number;
-	currentElement: 'Table' | 'Container';
+	currentElement: 'Table' | 'EditableContainer' | 'MainContainer';
 	tableJson: TableJSON;
 
 	constructor(private renderer: Renderer2, private sanitizer: DomSanitizer) 
@@ -102,9 +103,10 @@ export class HtmlEditorComponent
 		this.rowIndex = 0;
 		this.colIndex = 0;
 
-		this.currentElement = null;
+		this.currentElement = 'MainContainer';
 
 		this.numOfTables = 0;
+		this.numOfTablesToPatch = null;
 
 		this.tableJson = { header: [], body: [] };
 		this.content = [];
@@ -196,19 +198,19 @@ export class HtmlEditorComponent
 
 	onMainContainerClick(): void
 	{
-		this.currentElement = 'Container';
+		this.currentElement = 'MainContainer';
 	}
 
 	onAddTable(): void
 	{
 		this.makeTable();
-		this.initResizing(`dynamic_table_${this.numOfTables}`);
 	}
 
 	onEditableContainerClicked(ev: MouseEvent): void
 	{
-		this.currentElement = null;
+		this.currentElement = 'EditableContainer';
         this.makeContentEditable();
+		ev.stopPropagation();
 	}
 
 	makeTable(): void
@@ -216,7 +218,7 @@ export class HtmlEditorComponent
 		const dimensions = prompt('rows/cols', '2/3');
         if (dimensions && dimensions != '') 
 		{
-			if (this.currentElement === 'Table') return;
+			if (this.currentElement === 'Table' || this.currentElement === 'MainContainer') return;
 
             [this.numOfRows, this.numOfCols] = dimensions.split('/');
             this.addHTMLAtCaretPos('table');
@@ -256,7 +258,6 @@ export class HtmlEditorComponent
 
 	getTableHTML(): HTMLTableElement
 	{
-		console.log('Table JSON =', this.tableJson);
 		this.numOfTables += 1;
 		const containerPadding = 20;
 		const styles = window.getComputedStyle(this.editableContent.nativeElement);		// TODO replace getComputed with offsetWidth;
@@ -276,6 +277,7 @@ export class HtmlEditorComponent
 
 			if (this.tableJson.header.length > 0) {
 				th.innerHTML = this.tableJson.header[c].text;
+				th.style.width = this.tableJson.header[c].width;
 
 				if (this.tableJson.header[c].colSpan > 0) {
 					th.colSpan = this.tableJson.header[c].colSpan;
@@ -283,8 +285,8 @@ export class HtmlEditorComponent
 			} 
 			else {
 				th.innerHTML = `Heading ${c+1}`;
+				th.style.width = width + 'px';	
 			}
-			th.style.width = width + 'px';	
 			theadRow.appendChild(th);
 		}
 	
@@ -304,7 +306,6 @@ export class HtmlEditorComponent
 					td.innerHTML = this.tableJson.body[r].cells[c].text;
 
 					if (this.tableJson.body[r].cells[c].colSpan > 0) {
-						console.log('Row Cell ColSpan =', this.tableJson.body[r].cells[c].colSpan)
 						td.colSpan = this.tableJson.body[r].cells[c].colSpan;
 					}
 				} 
@@ -770,7 +771,7 @@ export class HtmlEditorComponent
 
 	onPreview(): void
 	{		
-		// this.getDescriptionDataAsJSON();
+		this.getDescriptionDataAsJSON();
 		console.log('Content =', this.content);
 		// this.content = [ { "type": "normal", "content": "<div>some Text</div>" }, { "type": "normal", "content": "<div><b><i>bold + italic</i></b></div>" }, { "type": "normal", "content": "<div><b><i><u>bold + italic + underline</u></i></b></div>" }, { "type": "normal", "content": "<div><b><i><u><br></u></i></b></div>" }, { "type": "normal", "content": "<div><b><u>list 1</u></b></div>" }, { "type": "normal", "content": "<div><ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul></div>" }, { "type": "table", "content": "{\"header\":[{\"text\":\"Heading 1\",\"colSpan\":0,\"width\":\"241.33px\"},{\"text\":\"Heading 2\",\"colSpan\":0,\"width\":\"241.33px\"},{\"text\":\"Heading 3\",\"colSpan\":0,\"width\":\"241.33px\"}],\"body\":[{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":0},{\"text\":\"Cell 2\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]}]}" }, { "type": "normal", "content": "<br>" }, { "type": "normal", "content": "<div _ngcontent-wdl-c11=\"\"><b><u>list 2</u></b></div>" }, { "type": "normal", "content": "<ul><li>Item 4</li><li>Item 5</li><li>Item 6</li><li>Item 7</li></ul>" }, { "type": "table", "content": "{\"header\":[{\"text\":\"Heading 1\",\"colSpan\":0,\"width\":\"238.67px\"},{\"text\":\"Heading 2\",\"colSpan\":0,\"width\":\"238.67px\"},{\"text\":\"Heading 3\",\"colSpan\":0,\"width\":\"238.67px\"}],\"body\":[{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":2},{\"text\":\"Cell 3\",\"colSpan\":0}]},{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":0},{\"text\":\"Cell 2\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]},{\"cells\":[{\"text\":\"<b>Cell 1</b>\",\"colSpan\":0},{\"text\":\"<span style=\\\"background-color: green;\\\">Cell 2</span>\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]}]}" } ];
 		this.editableContent.nativeElement.innerHTML = null;
@@ -788,9 +789,9 @@ export class HtmlEditorComponent
 					const el = this.renderer.createElement('div');
 					el.appendChild(this.getTableHTML());
 					this.editableContent.nativeElement.appendChild(el);
+					this.numOfTablesToPatch = this.numOfTables;
 					setTimeout(() => {
 						this.setEventListeners();
-						this.initResizing(`dynamic_table_${this.numOfTables}`);
 					}, 0);
 					break;
 			}
@@ -798,6 +799,12 @@ export class HtmlEditorComponent
 
 		this.html = this.sanitizer.bypassSecurityTrustHtml(this.editableContent.nativeElement.innerHTML);
 		console.log('HTML =', this.editableContent.nativeElement.innerHTML);
+
+		setTimeout(() => {
+			this.numOfTablesToPatch = null;
+		}, 0);
+		
+		
 		// this.content = this.getDescriptionDataAsJSON();
 		// this.editableContent.nativeElement.innerHTML = null;
 		// if (this.content.includes('#JSON')) {
@@ -831,8 +838,10 @@ export class HtmlEditorComponent
 
 	setEventListeners(): void
 	{
-		const table = document.getElementById(`dynamic_table_${this.numOfTables}`) as HTMLTableElement;
-		console.log('Table for event listeners', table);
+		let id = 'dynamic_table_';
+		id += this.numOfTablesToPatch ? this.numOfTablesToPatch : this.numOfTables;
+		const table = document.getElementById(id) as HTMLTableElement;
+
 		if (table) {
 			const theadRow = table.tHead.rows[0];
 			theadRow.addEventListener('click', (ev: MouseEvent) => {
@@ -862,5 +871,8 @@ export class HtmlEditorComponent
 				}
 			}
 		}
+
+		if (this.numOfTablesToPatch) this.numOfTablesToPatch -= 1;
+		this.initResizing(id);
 	}
 }
