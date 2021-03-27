@@ -678,25 +678,19 @@ export class HtmlEditorComponent
 		const obj: EditableContent = {type, content};
 		this.content.push(obj);
 	}
-
-	getDescriptionDataAsJSON(): void
+	
+	getSectionJSON(): void
 	{
 		this.content = [];
         const children = this.editableContent.nativeElement.children;
+		console.log('Children =', children);
 
 		if (children.length > 0) {
-			for (let c=0; c<children.length; c++ ) 
-			{
-				let child = children[c];
-				let json = null;
-	
+			let json = null;
+			Array.from(children).forEach((child: HTMLElement) => {
 				if (child.getElementsByTagName('table').length > 0) 
 				{
-					let newChildren = child.children;
-
-					for (let j=0; j<newChildren.length; j++) 
-					{
-						let newChild = newChildren[j];
+					Array.from(child.children).forEach((newChild: HTMLElement) => {
 						if (newChild.tagName === 'TABLE') {
 							json = this.getTableJSON(newChild.getAttribute('id'));
 							this.addContent('table', json);
@@ -719,10 +713,17 @@ export class HtmlEditorComponent
 							}
 						}
 						else this.addContent('normal', newChild.outerHTML);
-					}
+					});
 				}
-				else this.addContent('normal', child.outerHTML);		
-			}
+				else
+				{
+					if (child.tagName === 'TABLE') {
+						json = this.getTableJSON(child.getAttribute('id'));
+						this.addContent('table', json);
+					}
+					else this.addContent('normal', child.outerHTML);
+				}
+			});
 		}
 		else 
 		{
@@ -771,7 +772,7 @@ export class HtmlEditorComponent
 
 	onPreview(): void
 	{		
-		this.getDescriptionDataAsJSON();
+		this.getSectionJSON();
 		console.log('Content =', this.content);
 		// this.content = [ { "type": "normal", "content": "<div>some Text</div>" }, { "type": "normal", "content": "<div><b><i>bold + italic</i></b></div>" }, { "type": "normal", "content": "<div><b><i><u>bold + italic + underline</u></i></b></div>" }, { "type": "normal", "content": "<div><b><i><u><br></u></i></b></div>" }, { "type": "normal", "content": "<div><b><u>list 1</u></b></div>" }, { "type": "normal", "content": "<div><ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul></div>" }, { "type": "table", "content": "{\"header\":[{\"text\":\"Heading 1\",\"colSpan\":0,\"width\":\"241.33px\"},{\"text\":\"Heading 2\",\"colSpan\":0,\"width\":\"241.33px\"},{\"text\":\"Heading 3\",\"colSpan\":0,\"width\":\"241.33px\"}],\"body\":[{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":0},{\"text\":\"Cell 2\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]}]}" }, { "type": "normal", "content": "<br>" }, { "type": "normal", "content": "<div _ngcontent-wdl-c11=\"\"><b><u>list 2</u></b></div>" }, { "type": "normal", "content": "<ul><li>Item 4</li><li>Item 5</li><li>Item 6</li><li>Item 7</li></ul>" }, { "type": "table", "content": "{\"header\":[{\"text\":\"Heading 1\",\"colSpan\":0,\"width\":\"238.67px\"},{\"text\":\"Heading 2\",\"colSpan\":0,\"width\":\"238.67px\"},{\"text\":\"Heading 3\",\"colSpan\":0,\"width\":\"238.67px\"}],\"body\":[{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":2},{\"text\":\"Cell 3\",\"colSpan\":0}]},{\"cells\":[{\"text\":\"Cell 1\",\"colSpan\":0},{\"text\":\"Cell 2\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]},{\"cells\":[{\"text\":\"<b>Cell 1</b>\",\"colSpan\":0},{\"text\":\"<span style=\\\"background-color: green;\\\">Cell 2</span>\",\"colSpan\":0},{\"text\":\"Cell 3\",\"colSpan\":0}]}]}" } ];
 		this.editableContent.nativeElement.innerHTML = null;
