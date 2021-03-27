@@ -85,6 +85,10 @@ export class HtmlEditorComponent
 				title: 'Column Right'
 			},
 			{
+				name: 'remove_table',
+				title: 'Remove Table'
+			},
+			{
 				name: 'remove_row',
 				title: 'Remove Row'
 			},
@@ -180,6 +184,10 @@ export class HtmlEditorComponent
 
 			case 'column_left':
 				this.addColumn('left');
+				break;
+
+			case 'remove_table':
+				this.onRemove('table');
 				break;
 
 			case 'remove_row':
@@ -678,7 +686,7 @@ export class HtmlEditorComponent
 		const obj: EditableContent = {type, content};
 		this.content.push(obj);
 	}
-	
+
 	getSectionJSON(): void
 	{
 		this.content = [];
