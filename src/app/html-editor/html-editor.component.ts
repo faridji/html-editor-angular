@@ -304,6 +304,7 @@ export class HtmlEditorComponent
 			let tr = this.renderer.createElement('tr');
 			const len = this.tableJson.body.length;
 
+			console.log('Table JSON =', this.tableJson);
 			this.numOfCols = (len > 0) ? this.tableJson.body[r].cells.length.toString() : this.numOfCols;
 			
 			for (let c=0; c<parseInt(this.numOfCols); c++) {
@@ -559,7 +560,7 @@ export class HtmlEditorComponent
 	
 	initResizing(id: string): void
 	{
-		const table = document.getElementById(id);
+		const table = document.getElementById(id) as HTMLTableElement;
 	
 		// Query all headers
 		const cols = table.querySelectorAll('th');
@@ -570,7 +571,7 @@ export class HtmlEditorComponent
 		});
 	}
 	
-	addResizerDiv(c: any, tbl: any) {
+	addResizerDiv(c: HTMLTableCellElement, tbl: HTMLTableElement) {
 		// Create a resizer element
 		const resizer = this.renderer.createElement('div');
 		resizer.classList.add('resizer');
@@ -582,16 +583,16 @@ export class HtmlEditorComponent
 		c.appendChild(resizer);
 	
 		// Will be implemented in the next section
-		this.createResizableColumn(c, resizer);
+		this.createResizableColumn(c, resizer, tbl);
 	}
 	
-	createResizableColumn(col: any, resizer: any): void
+	createResizableColumn2(col: HTMLTableCellElement, resizer: HTMLDivElement, table: HTMLTableElement): void
 	{
 		// Track the current position of mouse
 		let x = 0;
 		let w = 0;
 	
-		const mouseDownHandler = function(e) {
+		const mouseDownHandler = (e: MouseEvent) => {
 			// Get the current mouse position
 			x = e.clientX;
 	
@@ -605,7 +606,7 @@ export class HtmlEditorComponent
 			document.addEventListener('mouseup', mouseUpHandler);
 		};
 	
-		const mouseMoveHandler = function(e) {
+		const mouseMoveHandler = (e: MouseEvent) => {
 			// Determine how far the mouse has been moved
 			const dx = e.clientX - x;
 	
@@ -616,13 +617,74 @@ export class HtmlEditorComponent
 		};
 	
 		// When user releases the mouse, remove the existing event listeners
-		const mouseUpHandler = function() {
+		const mouseUpHandler = () => {
 			document.removeEventListener('mousemove', mouseMoveHandler);
 			document.removeEventListener('mouseup', mouseUpHandler);
 		};
 	
 		resizer.addEventListener('mousedown', mouseDownHandler);
 	};
+
+	createResizableColumn(col: HTMLTableCellElement, resizer: HTMLDivElement, table: HTMLTableElement): void
+	{
+		let pageX = 0;
+		let curColWidth = 0;
+		let nxtColWidth = 0;
+		let nxtCol = null;
+		const minColWidth = 70;
+
+		const mouseDownHandler = (e: MouseEvent) => {
+			// Calculate the current width of column
+			nxtCol = col.nextElementSibling as HTMLTableCellElement;
+			pageX = e.pageX;
+			curColWidth = col.offsetWidth;
+			if (nxtCol) {
+				nxtColWidth = nxtCol.offsetWidth;
+			}
+			resizer.classList.add('resizing');
+	
+			// Attach listeners for document's events
+			document.addEventListener('mousemove', mouseMoveHandler);
+			document.addEventListener('mouseup', mouseUpHandler);
+		};
+	
+		const mouseMoveHandler = (e: MouseEvent) => {
+			if (col) 
+			{
+				var diffX = e.pageX - pageX;
+			  
+				if (nxtCol) {
+					nxtCol.style.width = (nxtColWidth - (diffX))+'px';
+
+					// Min column width Check;
+					if (nxtCol.offsetWidth <= minColWidth) this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
+				}
+			 
+				col.style.width = (curColWidth + diffX)+'px';
+
+				// Last column width should not increase if table width exceeds from parent width;
+				if (col.cellIndex === parseInt(this.numOfCols) - 1 && table.offsetWidth >= table.parentElement.offsetWidth && diffX > 0)
+				{
+					this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
+				}
+
+				// Min column width Check;
+				if (col.offsetWidth <= minColWidth) this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
+				resizer.classList.remove('resizing');
+			}
+		};
+	
+		// When user releases the mouse, remove the existing event listeners
+		const mouseUpHandler = () => this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
+	
+		resizer.addEventListener('mousedown', mouseDownHandler);
+	};
+
+	removeMouseEvents(mouseMove: any, mouseUp: any): void {
+		document.removeEventListener('mousemove', mouseMove);
+		document.removeEventListener('mouseup', mouseUp);
+		return;
+	}
 
 	getDescriptionDataAsString(): string
     {
@@ -691,7 +753,6 @@ export class HtmlEditorComponent
 	{
 		this.content = [];
         const children = this.editableContent.nativeElement.children;
-		console.log('Children =', children);
 
 		if (children.length > 0) {
 			let json = null;
@@ -850,7 +911,7 @@ export class HtmlEditorComponent
 		let id = 'dynamic_table_';
 		id += this.numOfTablesToPatch ? this.numOfTablesToPatch : this.numOfTables;
 		const table = document.getElementById(id) as HTMLTableElement;
-
+		
 		if (table) {
 			const theadRow = table.tHead.rows[0];
 			theadRow.addEventListener('click', (ev: MouseEvent) => {
