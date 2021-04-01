@@ -17,8 +17,8 @@ export class HtmlEditorComponent
 	content: EditableContent[];
 	html: ɵSafeHtml;
 
-	numOfCols: string;
-	numOfRows: string;
+	numOfCols: number;
+	numOfRows: number;
 	numOfTables: number;
 	numOfTablesToPatch: number;
 	rowIndex: number;
@@ -209,11 +209,6 @@ export class HtmlEditorComponent
 		this.currentElement = 'MainContainer';
 	}
 
-	onAddTable(): void
-	{
-		this.makeTable();
-	}
-
 	onEditableContainerClicked(ev: MouseEvent): void
 	{
 		this.currentElement = 'EditableContainer';
@@ -228,7 +223,7 @@ export class HtmlEditorComponent
 		{
 			if (this.currentElement === 'Table' || this.currentElement === 'MainContainer') return;
 
-            [this.numOfRows, this.numOfCols] = dimensions.split('/');
+            [this.numOfRows, this.numOfCols] = dimensions.split('/').map(Number);
             this.addHTMLAtCaretPos('table');
 			this.setEventListeners();
             this.removeContentEditable();
@@ -270,7 +265,7 @@ export class HtmlEditorComponent
 		const containerPadding = 20;
 		const styles = window.getComputedStyle(this.editableContent.nativeElement);		// TODO replace getComputed with offsetWidth;
 		const containerWidth = parseInt(styles.width, 10) - containerPadding;
-		let width = (containerWidth / parseInt(this.numOfCols)).toFixed(2);	
+		let width = (containerWidth / this.numOfCols).toFixed(2);	
 	
 		let table = this.renderer.createElement('table');
 		table.setAttribute('id', `dynamic_table_${this.numOfTables}`);
@@ -279,7 +274,7 @@ export class HtmlEditorComponent
 		let tbody = this.renderer.createElement('tbody');
 		let theadRow = this.renderer.createElement('tr');
 	
-		for (let c=0; c<parseInt(this.numOfCols); c++) {
+		for (let c=0; c<this.numOfCols; c++) {
 			let th = this.renderer.createElement('th');
 			th.setAttribute('contenteditable', 'true');
 
@@ -300,14 +295,14 @@ export class HtmlEditorComponent
 	
 		thead.appendChild(theadRow);
 	
-		for (let r=0; r<parseInt(this.numOfRows) - 1; r++) {
+		for (let r=0; r<this.numOfRows - 1; r++) {
 			let tr = this.renderer.createElement('tr');
 			const len = this.tableJson.body.length;
 
 			console.log('Table JSON =', this.tableJson);
-			this.numOfCols = (len > 0) ? this.tableJson.body[r].cells.length.toString() : this.numOfCols;
+			this.numOfCols = (len > 0) ? this.tableJson.body[r].cells.length : this.numOfCols;
 			
-			for (let c=0; c<parseInt(this.numOfCols); c++) {
+			for (let c=0; c<this.numOfCols; c++) {
 				let td = this.renderer.createElement('td');
 				td.setAttribute('contenteditable', 'true');
 
@@ -493,11 +488,13 @@ export class HtmlEditorComponent
 			switch(type) {
 				case 'row':
 					table.deleteRow(this.rowIndex);
+					this.numOfRows -= 1;
 					break;
 
 				case 'table':
 					const parent = table.parentElement;
 					parent.removeChild(table);
+					this.numOfTables -= 1;
 					break;
 
 				default:
@@ -506,6 +503,8 @@ export class HtmlEditorComponent
 					{
 						if (allRows[i].cells.length > 1) allRows[i].deleteCell(this.colIndex);
 					}
+
+					this.numOfCols -= 1;
 			}
 		}
 	}
@@ -632,6 +631,7 @@ export class HtmlEditorComponent
 		let nxtColWidth = 0;
 		let nxtCol = null;
 		const minColWidth = 70;
+		const parentPadding = 22;
 
 		const mouseDownHandler = (e: MouseEvent) => {
 			// Calculate the current width of column
@@ -663,8 +663,9 @@ export class HtmlEditorComponent
 				col.style.width = (curColWidth + diffX)+'px';
 
 				// Last column width should not increase if table width exceeds from parent width;
-				if (col.cellIndex === parseInt(this.numOfCols) - 1 && table.offsetWidth >= table.parentElement.offsetWidth && diffX > 0)
+				if (col.cellIndex === this.numOfCols - 1 && (table.offsetWidth >= (table.parentElement.parentElement.offsetWidth - parentPadding)) && diffX > 0)
 				{
+					console.log('Table width exceeds from parent width.');
 					this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
 				}
 
@@ -853,8 +854,8 @@ export class HtmlEditorComponent
 
 				case 'table':
 					this.tableJson = JSON.parse(section.content);
-					this.numOfCols = this.tableJson.header.length.toString();
-					this.numOfRows = (this.tableJson.body.length + 1).toString();
+					this.numOfCols = this.tableJson.header.length;
+					this.numOfRows = this.tableJson.body.length + 1;
 					
 					const el = this.renderer.createElement('div');
 					el.appendChild(this.getTableHTML());
