@@ -99,6 +99,10 @@ export class HtmlEditorComponent
 			{
 				name: 'merge_cells',
 				title: 'Merge Cells'
+			},
+			{
+				name: 'font_size',
+				title: 'Table Font Size'
 			}
 		]
 		this.numOfCols = null;
@@ -201,7 +205,37 @@ export class HtmlEditorComponent
 			case 'merge_cells':
 				this.mergeCells();
 				break;
+
+			case 'font_size':
+				const fontSize = parseInt(prompt('Font size:', '10'));
+				this.changeFontSize(fontSize);
+				break;
 		}
+	}
+
+	changeFontSize(size: number): void
+	{
+		const table = document.getElementById(this.getTableId()) as HTMLTableElement;
+
+		let thead = table.tHead.rows[0];
+
+		for (var th=0; th<thead.cells.length; th++) {
+			const cell = thead.cells[th];
+			cell.style.fontSize = size + 'px';
+		}
+
+		const tableBody = table.tBodies[0];
+		for (let r=0; r < tableBody.rows.length; r++) {
+			let row = tableBody.rows[r];			
+			for (let c=0; c < row.cells.length; c++ )
+			{
+				let cell = row.cells[c];
+				cell.style.fontSize = size + 'px';
+			}
+		}
+
+		table.style.fontSize = size + 'px';
+		this.reInitializeResizing();
 	}
 
 	onMainContainerClick(): void
@@ -285,6 +319,9 @@ export class HtmlEditorComponent
 				if (this.tableJson.header[c].colSpan > 0) {
 					th.colSpan = this.tableJson.header[c].colSpan;
 				}
+				if (this.tableJson.header[c].fontSize) {
+					th.style.fontSize = this.tableJson.header[c].fontSize;
+				}
 			} 
 			else {
 				th.innerHTML = `Heading ${c+1}`;
@@ -311,6 +348,9 @@ export class HtmlEditorComponent
 
 					if (this.tableJson.body[r].cells[c].colSpan > 0) {
 						td.colSpan = this.tableJson.body[r].cells[c].colSpan;
+					}
+					if (this.tableJson.body[r].cells[c].fontSize) {
+						td.style.fontSize = this.tableJson.body[r].cells[c].fontSize;
 					}
 				} 
 				else {
@@ -400,6 +440,11 @@ export class HtmlEditorComponent
 				cell.setAttribute('contenteditable', 'true');
 				cell.innerHTML = `Cell ${i+1}`;
 				cell.style.border = '1px solid gray';
+
+				if (table.style.fontSize) {
+                    cell.style.fontSize = table.style.fontSize;
+                }
+
 				cell.onclick = () => {
 					this.getCellIndex(cell);
 				}
@@ -431,6 +476,10 @@ export class HtmlEditorComponent
 				th.style.width = '70px';
 				th.style.border = '1px solid gray';
 				th.style.position = 'relative';
+
+				if (table.style.fontSize) {
+                    th.style.fontSize = table.style.fontSize;
+                }
 
 				th.onclick = () => {
 					this.getCellIndex(th);
@@ -638,6 +687,7 @@ export class HtmlEditorComponent
 			nxtCol = col.nextElementSibling as HTMLTableCellElement;
 			pageX = e.pageX;
 			curColWidth = col.offsetWidth;
+			
 			if (nxtCol) {
 				nxtColWidth = nxtCol.offsetWidth;
 			}
@@ -657,7 +707,7 @@ export class HtmlEditorComponent
 					nxtCol.style.width = (nxtColWidth - (diffX))+'px';
 
 					// Min column width Check;
-					if (nxtCol.offsetWidth <= minColWidth) this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
+					if (nxtCol.offsetWidth < minColWidth) this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
 				}
 			 
 				col.style.width = (curColWidth + diffX)+'px';
@@ -670,7 +720,7 @@ export class HtmlEditorComponent
 				}
 
 				// Min column width Check;
-				if (col.offsetWidth <= minColWidth) this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
+				if (col.offsetWidth < minColWidth) this.removeMouseEvents(mouseMoveHandler, mouseUpHandler);
 				resizer.classList.remove('resizing');
 			}
 		};
@@ -817,7 +867,8 @@ export class HtmlEditorComponent
 				this.tableJson.header.push({
 					text: cell.innerHTML,
 					colSpan: +cell.getAttribute('colSpan'),
-					width: cell.style.width
+					width: cell.style.width,
+					fontSize: cell.style.fontSize
 				});
 			}
 
@@ -831,7 +882,8 @@ export class HtmlEditorComponent
 					let cell = row.cells[c];
 					this.tableJson.body[r].cells.push({
 						text: cell.innerHTML,
-						colSpan: +cell.getAttribute('colSpan')
+						colSpan: +cell.getAttribute('colSpan'),
+						fontSize: cell.style.fontSize
 					});
 				}
 			}

@@ -16,6 +16,7 @@ export interface Cell {
     text: string;
     colSpan: number;
     width?: string;
+    fontSize?: string;
 }
 
 export interface EditableContent {
